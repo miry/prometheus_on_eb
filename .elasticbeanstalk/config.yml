@@ -1,0 +1,10 @@
+branch-defaults:
+  default:
+    environment: null
+global:
+  application_name: prometheus
+  default_ec2_keyname: null
+  default_platform: Multi-container Docker 1.6.0 (Generic)
+  default_region: null
+  profile: null
+  sc: null

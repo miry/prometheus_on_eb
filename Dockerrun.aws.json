@@ -1,0 +1,17 @@
+{
+  "AWSEBDockerrunVersion": "2",
+  "containerDefinitions": [
+    {
+      "name": "prometheus-app",
+      "image": "prom/prometheus",
+      "essential": true,
+      "memory": 512,
+      "portMappings": [
+        {
+          "hostPort": 9090,
+          "containerPort": 9090
+        }
+      ]
+    }
+  ]
+}

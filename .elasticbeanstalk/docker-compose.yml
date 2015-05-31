@@ -1,0 +1,4 @@
+prometheusapp:
+  image: prom/prometheus
+  ports:
+  - 9090:9090
