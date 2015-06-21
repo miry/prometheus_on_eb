@@ -2,12 +2,17 @@
   "AWSEBDockerrunVersion": "2",
   "volumes": [
     {
+      "name": "nginx-proxy-conf",
+      "host": {
+        "sourcePath": "/var/app/current/proxy/conf.d"
+      }
+    },
+    {
       "name": "mysql-data",
       "host": {
         "sourcePath": "/data/mysql"
       }
     },
-
     {
       "name": "prometheus-conf",
       "host": {
@@ -26,10 +31,14 @@
       "host":{
         "sourcePath": "/var/app/current/bin"
       }
+    },
+    {
+      "name": "prometheus-gateway-data",
+      "host": {
+        "sourcePath": "/data/prometheus_gateway"
+      }
     }
-
   ],
-
   "containerDefinitions": [
     {
       "name": "db",
@@ -49,19 +58,35 @@
         }
       ]
     },
+    {
+      "name": "prometheus-gateway",
+      "image": "prom/pushgateway",
+      "essential": true,
+      "memory": 1024,
+      "mountPoints": [
+        {
+          "sourceVolume": "prometheus-gateway-data",
+          "containerPath": "/data"
+        }
+      ],
+      "command": [
+        "-persistence.file",
+        "/data/pushgateway.dat"
+      ],
+      "portMappings": [
+        {
+          "hostPort": 9091,
+          "containerPort": 9091
+        }
+      ]
+    },
+
 
     {
       "name": "prometheus-app",
       "image": "prom/prometheus",
       "essential": true,
       "memory": 512,
-      "portMappings": [
-        {
-          "hostPort": 9090,
-          "containerPort": 9090
-        }
-      ],
-
       "mountPoints": [
         {
           "sourceVolume": "prometheus-conf",
@@ -72,16 +97,16 @@
           "containerPath": "/data"
         }
       ],
-
-
       "command": [
         "-config.file=/opt/prometheus/prometheus.yml",
         "-storage.local.path=/data",
         "-web.console.libraries=/etc/prometheus/console_libraries",
         "-web.console.templates=/etc/prometheus/consoles"
+      ],
+      "links": [
+        "prometheus-gateway"
       ]
     },
-
     {
       "name": "rails-app",
       "image": "prom/promdash",
@@ -89,13 +114,6 @@
       "links": [
         "db"
       ],
-      "portMappings": [
-        {
-          "hostPort": 3000,
-          "containerPort": 3000
-        }
-      ],
-
       "memory": 256,
       "environment": [
         {
@@ -144,9 +162,37 @@
         "db:create",
         "db:migrate"
       ]
+    },
+    {
+      "name": "nginx-proxy",
+      "image": "nginx",
+      "essential": true,
+      "memory": 128,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 80
+        },
+        {
+          "hostPort": 9090,
+          "containerPort": 9090
+        }
+      ],
+      "links": [
+        "rails-app",
+        "prometheus-app"
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "awseb-logs-nginx-proxy",
+          "containerPath": "/var/log/nginx"
+        },
+        {
+          "sourceVolume": "nginx-proxy-conf",
+          "containerPath": "/etc/nginx/conf.d",
+          "readOnly": true
+        }
+      ]
     }
-
-
-
   ]
 }

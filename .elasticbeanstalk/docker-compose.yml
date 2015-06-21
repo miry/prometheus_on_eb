@@ -19,6 +19,17 @@ dbmigration:
   - db:db
   volumes:
   - /Users/miry/projects/personal/prometheus/bin:/opt/tools
+nginxproxy:
+  image: nginx
+  links:
+  - railsapp:rails-app
+  - prometheusapp:prometheus-app
+  ports:
+  - 80:80
+  - 9090:9090
+  volumes:
+  - /Users/miry/projects/personal/prometheus/.elasticbeanstalk/logs/local/150621_224319137547/nginx-proxy:/var/log/nginx
+  - /Users/miry/projects/personal/prometheus/proxy/conf.d:/etc/nginx/conf.d:ro
 prometheusapp:
   command:
   - -config.file=/opt/prometheus/prometheus.yml
@@ -26,10 +37,17 @@ prometheusapp:
   - -web.console.libraries=/etc/prometheus/console_libraries
   - -web.console.templates=/etc/prometheus/consoles
   image: prom/prometheus
-  ports:
-  - 9090:9090
+  links:
+  - prometheusgateway:prometheus-gateway
   volumes:
   - /Users/miry/projects/personal/prometheus/prometheus:/opt/prometheus
+prometheusgateway:
+  command:
+  - -persistence.file
+  - /data/pushgateway.dat
+  image: prom/pushgateway
+  ports:
+  - 9091:9091
 railsapp:
   environment:
     DATABASE_URL: mysql2://root:secretpassword@[HOST]/promdash
