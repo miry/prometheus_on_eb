@@ -1,4 +1,41 @@
+db:
+  environment:
+    MYSQL_ROOT_PASSWORD: secretpassword
+  image: mysql
+dbmigration:
+  command:
+  - sh
+  - /opt/tools/delay.sh
+  - '20'
+  - /opt/tools/sleep.sh
+  - ./bin/rake
+  - db:create
+  - db:migrate
+  environment:
+    DATABASE_URL: mysql2://root:secretpassword@[HOST]/promdash
+    RAILS_ENV: production
+  image: prom/promdash
+  links:
+  - db:db
+  volumes:
+  - /Users/miry/projects/personal/prometheus/bin:/opt/tools
 prometheusapp:
+  command:
+  - -config.file=/opt/prometheus/prometheus.yml
+  - -storage.local.path=/data
+  - -web.console.libraries=/etc/prometheus/console_libraries
+  - -web.console.templates=/etc/prometheus/consoles
   image: prom/prometheus
   ports:
   - 9090:9090
+  volumes:
+  - /Users/miry/projects/personal/prometheus/prometheus:/opt/prometheus
+railsapp:
+  environment:
+    DATABASE_URL: mysql2://root:secretpassword@[HOST]/promdash
+    RAILS_ENV: production
+  image: prom/promdash
+  links:
+  - db:db
+  ports:
+  - 3000:3000

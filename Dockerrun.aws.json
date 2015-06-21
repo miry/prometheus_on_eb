@@ -1,6 +1,55 @@
 {
   "AWSEBDockerrunVersion": "2",
+  "volumes": [
+    {
+      "name": "mysql-data",
+      "host": {
+        "sourcePath": "/data/mysql"
+      }
+    },
+
+    {
+      "name": "prometheus-conf",
+      "host": {
+        "sourcePath": "/var/app/current/prometheus"
+      }
+    },
+    {
+      "name": "prometheus-data",
+      "host": {
+        "sourcePath": "/data/prometheus"
+      }
+    },
+
+    {
+      "name": "helpers",
+      "host":{
+        "sourcePath": "/var/app/current/bin"
+      }
+    }
+
+  ],
+
   "containerDefinitions": [
+    {
+      "name": "db",
+      "image": "mysql",
+      "essential": true,
+      "memory": 512,
+      "environment": [
+        {
+          "name": "MYSQL_ROOT_PASSWORD",
+          "value": "secretpassword"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "mysql-data",
+          "containerPath": "/var/lib/mysql"
+        }
+      ]
+    },
+
     {
       "name": "prometheus-app",
       "image": "prom/prometheus",
@@ -11,7 +60,93 @@
           "hostPort": 9090,
           "containerPort": 9090
         }
+      ],
+
+      "mountPoints": [
+        {
+          "sourceVolume": "prometheus-conf",
+          "containerPath": "/opt/prometheus"
+        },
+        {
+          "sourceVolume": "prometheus-data",
+          "containerPath": "/data"
+        }
+      ],
+
+
+      "command": [
+        "-config.file=/opt/prometheus/prometheus.yml",
+        "-storage.local.path=/data",
+        "-web.console.libraries=/etc/prometheus/console_libraries",
+        "-web.console.templates=/etc/prometheus/consoles"
+      ]
+    },
+
+    {
+      "name": "rails-app",
+      "image": "prom/promdash",
+      "essential": true,
+      "links": [
+        "db"
+      ],
+      "portMappings": [
+        {
+          "hostPort": 3000,
+          "containerPort": 3000
+        }
+      ],
+
+      "memory": 256,
+      "environment": [
+        {
+          "name": "RAILS_ENV",
+          "value": "production"
+        },
+        {
+          "name": "DATABASE_URL",
+          "value": "mysql2://root:secretpassword@[HOST]/promdash"
+        }
+      ]
+    },
+
+    {
+      "name": "db-migration",
+      "image": "prom/promdash",
+      "essential": false,
+      "memory": 512,
+      "links": [
+        "db"
+      ],
+      "environment": [
+        {
+          "name": "RAILS_ENV",
+          "value": "production"
+        },
+        {
+          "name": "DATABASE_URL",
+          "value": "mysql2://root:secretpassword@[HOST]/promdash"
+        }
+      ],
+
+      "mountPoints": [
+        {
+          "sourceVolume": "helpers",
+          "containerPath": "/opt/tools"
+        }
+      ],
+
+      "command": [
+        "sh",
+        "/opt/tools/delay.sh",
+        "20",
+        "/opt/tools/sleep.sh",
+        "./bin/rake",
+        "db:create",
+        "db:migrate"
       ]
     }
+
+
+
   ]
 }
